@@ -35,8 +35,22 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Found version: $version"
 
-  build-windows:
+  test-suite:
     needs: determine-version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          toolchain: nightly
+
+      - name: Run Tests
+        run: cargo test --locked
+
+  build-windows:
+    needs: [determine-version, test-suite]
     runs-on: windows-latest 
     env:
       VERSION: ${{ needs.determine-version.outputs.version }}
@@ -51,23 +65,21 @@ jobs:
       - name: Build Release
         run: cargo build --release
 
-      - name: Create Release Package
+      - name: Prepare Windows Binary
         run: |
-          $archiveName = "duplicate-finder-rs-$env:VERSION-windows.zip"
-          New-Item -ItemType Directory -Path release-package -Force | Out-Null
-          Copy-Item "target/release/duplicate-finder-rs.exe" -Destination "release-package/"
-          Compress-Archive -Path "release-package/*" -DestinationPath $archiveName -Force
-          Write-Output "Created $archiveName"
+          New-Item -ItemType Directory -Path release-binary -Force | Out-Null
+          Copy-Item "target/release/duplicate-finder-rs.exe" -Destination ("release-binary/duplicate-finder-rs-$($env:VERSION)-windows.exe")
+          Write-Output "Prepared duplicate-finder-rs-$($env:VERSION)-windows.exe"
 
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-binary
-          path: duplicate-finder-rs-${{ env.VERSION }}-windows.zip
+          path: release-binary/duplicate-finder-rs-${{ env.VERSION }}-windows.exe
           if-no-files-found: error
 
   build-linux:
-    needs: determine-version
+    needs: [determine-version, test-suite]
     runs-on: ubuntu-latest
     env:
       VERSION: ${{ needs.determine-version.outputs.version }}
@@ -88,20 +100,18 @@ jobs:
       - name: Build Linux Release (musl)
         run: cargo build --release --target x86_64-unknown-linux-musl
 
-      - name: Package Linux Binary
+      - name: Prepare Linux Binary
         run: |
-          archive_name="duplicate-finder-rs-${VERSION}-linux-musl.tar.gz"
-          mkdir -p release-package
-          cp target/x86_64-unknown-linux-musl/release/duplicate-finder-rs release-package/
-          chmod +x release-package/duplicate-finder-rs
-          tar -czf "$archive_name" -C release-package duplicate-finder-rs
-          echo "Created $archive_name"
+          mkdir -p release-binary
+          cp target/x86_64-unknown-linux-musl/release/duplicate-finder-rs "release-binary/duplicate-finder-rs-${VERSION}-linux-musl"
+          chmod +x "release-binary/duplicate-finder-rs-${VERSION}-linux-musl"
+          echo "Prepared duplicate-finder-rs-${VERSION}-linux-musl"
 
       - name: Upload Linux Artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-musl-binary
-          path: duplicate-finder-rs-${{ env.VERSION }}-linux-musl.tar.gz
+          path: release-binary/duplicate-finder-rs-${{ env.VERSION }}-linux-musl
           if-no-files-found: error
 
   create-release:
@@ -126,8 +136,8 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            artifacts/windows/duplicate-finder-rs-${{ env.VERSION }}-windows.zip
-            artifacts/linux/duplicate-finder-rs-${{ env.VERSION }}-linux-musl.tar.gz
+            artifacts/windows/duplicate-finder-rs-${{ env.VERSION }}-windows.exe
+            artifacts/linux/duplicate-finder-rs-${{ env.VERSION }}-linux-musl
           generate_release_notes: true
           tag_name: v${{ env.VERSION }}
         env:
