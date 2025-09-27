@@ -1,0 +1,134 @@
+name: Release
+
+permissions:
+  contents: write
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  determine-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get Version
+        id: get_version
+        run: |
+          version=$(perl -ne 'print "$1\n" and exit if /^\s*version\s*=\s*"([^"]+)"/' Cargo.toml)
+          if [ -z "$version" ]; then
+            echo "::error::Could not extract version from Cargo.toml"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Found version: $version"
+
+  build-windows:
+    needs: determine-version
+    runs-on: windows-latest 
+    env:
+      VERSION: ${{ needs.determine-version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          toolchain: nightly
+          
+      - name: Build Release
+        run: cargo build --release
+
+      - name: Create Release Package
+        run: |
+          $archiveName = "duplicate-finder-rs-$env:VERSION-windows.zip"
+          New-Item -ItemType Directory -Path release-package -Force | Out-Null
+          Copy-Item "target/release/duplicate-finder-rs.exe" -Destination "release-package/"
+          Compress-Archive -Path "release-package/*" -DestinationPath $archiveName -Force
+          Write-Output "Created $archiveName"
+
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-binary
+          path: duplicate-finder-rs-${{ env.VERSION }}-windows.zip
+          if-no-files-found: error
+
+  build-linux:
+    needs: determine-version
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.determine-version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          toolchain: nightly
+          targets: x86_64-unknown-linux-musl
+
+      - name: Install musl tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
+      - name: Build Linux Release (musl)
+        run: cargo build --release --target x86_64-unknown-linux-musl
+
+      - name: Package Linux Binary
+        run: |
+          archive_name="duplicate-finder-rs-${VERSION}-linux-musl.tar.gz"
+          mkdir -p release-package
+          cp target/x86_64-unknown-linux-musl/release/duplicate-finder-rs release-package/
+          chmod +x release-package/duplicate-finder-rs
+          tar -czf "$archive_name" -C release-package duplicate-finder-rs
+          echo "Created $archive_name"
+
+      - name: Upload Linux Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-musl-binary
+          path: duplicate-finder-rs-${{ env.VERSION }}-linux-musl.tar.gz
+          if-no-files-found: error
+
+  create-release:
+    needs: [determine-version, build-windows, build-linux]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.determine-version.outputs.version }}
+    steps:
+      - name: Download Windows Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-binary
+          path: artifacts/windows
+
+      - name: Download Linux Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-musl-binary
+          path: artifacts/linux
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/windows/duplicate-finder-rs-${{ env.VERSION }}-windows.zip
+            artifacts/linux/duplicate-finder-rs-${{ env.VERSION }}-linux-musl.tar.gz
+          generate_release_notes: true
+          tag_name: v${{ env.VERSION }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 

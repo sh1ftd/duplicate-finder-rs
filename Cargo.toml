@@ -1,0 +1,64 @@
+cargo-features = ["profile-rustflags"]
+
+[package]
+    name = "duplicate-finder-rs"
+    version = "0.1.0"
+    edition = "2024"
+    license = "MIT"
+    authors = ["Shifty <contact@shifty.cloud>"]
+
+[dependencies]
+    sha2 = "0.10"
+    walkdir = "2.4"
+    hex = "0.4"
+    dialoguer = "0.12"
+    chrono = { version = "0.4", features = ["serde"] }
+
+
+[lints.rust]
+    # Security
+    non_ascii_idents = "forbid"
+
+    # Deny old style Rust
+    rust_2018_idioms = { level = "deny", priority = -1 }
+    macro_use_extern_crate = "deny"
+    absolute_paths_not_starting_with_crate = "deny"
+
+    # Style and best practices
+    explicit_outlives_requirements = "warn"
+    missing_abi = "deny"
+    unused_lifetimes = "warn"
+    unused_macro_rules = "warn"
+    single_use_lifetimes = "warn"
+
+[lints.clippy]
+    unused_async = "deny"
+    undocumented_unsafe_blocks = "warn"
+    implicit_clone = "warn"
+
+[profile.dev]
+    overflow-checks = true
+    debug = true
+    strip = false
+    panic = "unwind"
+    codegen-units = 256
+    incremental = true
+    opt-level = 0
+    lto = false
+
+[profile.release]
+    overflow-checks = true
+    debug = false
+    strip = "symbols"
+    panic = "abort"
+    codegen-units = 1
+    incremental = false
+    opt-level = 3
+    lto = "fat"
+    rustflags = ["-C", "target-cpu=x86-64", "-C", "strip=symbols"]
+
+[profile.release.package."*"]
+    overflow-checks = true
+    debug = false
+    codegen-units = 1
+    opt-level = 3
