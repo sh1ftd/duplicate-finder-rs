@@ -20,12 +20,10 @@ fn test_workflow_handles_missing_duplicates() {
 
 #[test]
 fn test_handle_workflow_error_displays_messages() {
-    let error = std::io::Error::new(std::io::ErrorKind::Other, "inner error");
+    let error = std::io::Error::other("inner error");
     let workflow_error = WorkflowError::Scan { source: error };
 
     handle_workflow_error(&workflow_error);
-
-    assert!(true);
 }
 
 #[test]
