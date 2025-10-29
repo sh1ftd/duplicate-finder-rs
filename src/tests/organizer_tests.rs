@@ -26,10 +26,10 @@ fn test_comprehensive_index_creation() -> Result<(), std::io::Error> {
 
     let folder1 = PathBuf::from(temp_dir)
         .join("duplicates")
-        .join(format!("{}_file1.txt", hash1));
+        .join(format!("{hash1}_file1.txt"));
     let folder2 = PathBuf::from(temp_dir)
         .join("duplicates")
-        .join(format!("{}_file3.txt", hash2));
+        .join(format!("{hash2}_file3.txt"));
 
     fs::create_dir_all(&folder1)?;
     fs::create_dir_all(&folder2)?;

@@ -1,5 +1,3 @@
-#![cfg(test)]
-
 mod utils;
 
 pub use utils::{cleanup_test_files, create_test_files};
