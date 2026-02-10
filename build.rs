@@ -1,6 +1,9 @@
 fn main() {
     // Emit these MSVC linker flags only when the final *target* is Windows.
-    if std::env::var("CARGO_CFG_TARGET_OS").map(|v| v == "windows").unwrap_or(false) {
+    if std::env::var("CARGO_CFG_TARGET_OS")
+        .map(|v| v == "windows")
+        .unwrap_or(false)
+    {
         // Basic Configuration
         println!("cargo:rustc-link-arg=/MERGE:.rdata=.text");
         println!("cargo:rustc-link-arg=/STACK:0x800000");
