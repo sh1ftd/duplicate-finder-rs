@@ -10,6 +10,26 @@ fn test_file_scanner_creation() {
 }
 
 #[test]
+fn test_file_scanner_finds_nested_files() -> Result<(), std::io::Error> {
+    let temp_dir = "test_nested_scan_dir";
+    cleanup_test_files(temp_dir)?;
+    let nested = PathBuf::from(temp_dir).join("a").join("b");
+    fs::create_dir_all(&nested)?;
+    let root_txt = PathBuf::from(temp_dir).join("root.txt");
+    let nested_txt = nested.join("leaf.txt");
+    fs::write(&root_txt, "root")?;
+    fs::write(&nested_txt, "leaf")?;
+
+    let scanner = FileScanner::new(temp_dir);
+    let files = scanner.scan_files()?;
+
+    assert_eq!(files.len(), 2);
+
+    cleanup_test_files(temp_dir)?;
+    Ok(())
+}
+
+#[test]
 fn test_file_info_creation() -> Result<(), std::io::Error> {
     let temp_dir = "test_temp_dir";
     fs::create_dir_all(temp_dir)?;

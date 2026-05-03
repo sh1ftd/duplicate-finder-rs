@@ -6,9 +6,8 @@ mod organizer;
 mod tests;
 mod workflow;
 
-use crate::workflow::{WorkflowError, WorkflowSummary, execute};
+use crate::workflow::{WorkflowSummary, execute, handle_workflow_error};
 use dialoguer::{Input, Select};
-use std::error::Error;
 use std::io;
 use std::process;
 
@@ -82,13 +81,6 @@ fn run_application(root_path: &str) {
             handle_workflow_error(&error);
             process::exit(1);
         }
-    }
-}
-
-fn handle_workflow_error(error: &WorkflowError) {
-    eprintln!("{error}");
-    if let Some(source) = error.source() {
-        eprintln!("Caused by: {source}");
     }
 }
 

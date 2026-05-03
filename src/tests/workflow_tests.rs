@@ -1,4 +1,3 @@
-use crate::handle_workflow_error;
 use crate::workflow::{self, WorkflowError};
 use std::fs;
 use std::path::PathBuf;
@@ -23,7 +22,7 @@ fn test_handle_workflow_error_displays_messages() {
     let error = std::io::Error::other("inner error");
     let workflow_error = WorkflowError::Scan { source: error };
 
-    handle_workflow_error(&workflow_error);
+    workflow::handle_workflow_error(&workflow_error);
 }
 
 #[test]
@@ -76,4 +75,63 @@ fn test_workflow_skips_current_executable() {
     assert!(!exe_path.exists());
 
     super::cleanup_test_files(temp_dir).unwrap();
+}
+
+#[test]
+fn test_workflow_index_content_readable_when_no_duplicates() {
+    let root = "test_workflow_index_readable";
+    let _ = fs::remove_dir_all(root);
+    fs::create_dir_all(root).unwrap();
+
+    let summary = workflow::execute(root).expect("workflow should succeed");
+    let index = summary
+        .index_content
+        .expect("index file should have been readable");
+    assert!(index.contains("Duplicate Files Comprehensive Index"));
+    assert!(index.contains("Total duplicate groups found: 0"));
+
+    super::cleanup_test_files(root).unwrap();
+}
+
+#[test]
+fn workflow_error_display_includes_variant_context() {
+    let scan = WorkflowError::Scan {
+        source: std::io::Error::other("s"),
+    };
+    assert!(scan.to_string().contains("Error scanning files"), "{scan}");
+
+    let detect = WorkflowError::Detect {
+        source: std::io::Error::other("d"),
+    };
+    assert!(
+        detect.to_string().contains("Error finding duplicates"),
+        "{detect}"
+    );
+
+    let organize = WorkflowError::Organize {
+        source: std::io::Error::other("o"),
+    };
+    assert!(
+        organize.to_string().contains("Error organizing duplicates"),
+        "{organize}"
+    );
+
+    let index_creation = WorkflowError::IndexCreation {
+        source: std::io::Error::other("i"),
+    };
+    assert!(
+        index_creation
+            .to_string()
+            .contains("Error creating comprehensive index"),
+        "{index_creation}"
+    );
+}
+
+#[test]
+fn workflow_error_source_points_at_io_error() {
+    let inner_msg = "nested-io";
+    let inner = std::io::Error::other(inner_msg);
+    let err = WorkflowError::Detect { source: inner };
+    let source = std::error::Error::source(&err).expect("source");
+    assert_eq!(format!("{}", source), inner_msg);
 }

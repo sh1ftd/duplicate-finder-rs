@@ -4,6 +4,12 @@ use std::fs;
 use std::path::PathBuf;
 
 #[test]
+fn test_compute_hash_nonexistent_file_fails() {
+    let missing = PathBuf::from("__missing_hash_target_duplicate_finder__.bin");
+    assert!(hasher::compute_file_hash(&missing).is_err());
+}
+
+#[test]
 fn test_hasher_compute_hash() -> Result<(), std::io::Error> {
     let temp_dir = "test_hash_dir";
     fs::create_dir_all(temp_dir)?;

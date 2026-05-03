@@ -50,6 +50,13 @@ impl std::error::Error for WorkflowError {
     }
 }
 
+pub fn handle_workflow_error(error: &WorkflowError) {
+    eprintln!("{error}");
+    if let Some(source) = std::error::Error::source(error) {
+        eprintln!("Caused by: {source}");
+    }
+}
+
 pub fn execute(root_path: &str) -> Result<WorkflowSummary, WorkflowError> {
     let scanner = FileScanner::new(root_path);
     let files = scanner
